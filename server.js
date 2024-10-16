@@ -136,7 +136,7 @@ wss.on('connection', (ws) => {
         body: [{ x: Math.random() * canvasWidth, y: Math.random() * canvasHeight }], // Start with one segment
         length: initialSnakeLength, // Length in segments
         direction: { x: 1, y: 0 },
-        speed: 100,
+        speed: 50,
         color: color,
         name: name,
         powerUpActive: false, // Whether the snake has an active power-up

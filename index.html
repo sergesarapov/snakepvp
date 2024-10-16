@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Slither.io Clone</title>
+    <style>
+        canvas { background-color: #000; display: block; margin: 0 auto; }
+        #startScreen {
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="startScreen">
+        <h1>Enter Your Name</h1>
+        <input type="text" id="playerName" placeholder="Enter your name">
+        <button id="startButton">Start Game</button>
+    </div>
+
+    <canvas id="gameCanvas" width="800" height="600" style="display:none;"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const socket = new WebSocket('ws://localhost:8080');
+
+        let playerId = null; // Our unique player ID
+        let snakes = {};
+        let foodItems = [];
+        let powerUp = null;
+
+        // Game starts when player enters their name
+        document.getElementById('startButton').addEventListener('click', () => {
+            const playerName = document.getElementById('playerName').value;
+            socket.send(JSON.stringify({ type: 'start', name: playerName }));
+            document.getElementById('startScreen').style.display = 'none';
+            canvas.style.display = 'block';
+        });
+
+        // Handle incoming messages from the server
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+
+            if (data.type === 'init') {
+                playerId = data.id; // Set player ID when received from the server
+            } else if (data.type === 'update') {
+                snakes = data.snakes;
+                foodItems = data.foodItems;
+                powerUp = data.powerUp; // Power-up state
+            }
+        };
+
+        // Handle keyboard input for movement
+        window.addEventListener('keydown', (event) => {
+            let direction = { x: 0, y: 0 };
+
+            if (event.key === 'ArrowUp') direction = { x: 0, y: -1 };
+            if (event.key === 'ArrowDown') direction = { x: 0, y: 1 };
+            if (event.key === 'ArrowLeft') direction = { x: -1, y: 0 };
+            if (event.key === 'ArrowRight') direction = { x: 1, y: 0 };
+
+            // Send the new direction to the server with the player's ID
+            if (playerId !== null) {
+                socket.send(JSON.stringify({ type: 'move', id: playerId, direction }));
+            }
+        });
+
+        // Game rendering loop
+        function renderGame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Render food items
+            foodItems.forEach(food => {
+                ctx.fillStyle = 'yellow';
+                ctx.fillRect(food.x, food.y, 10, 10);
+            });
+
+            // Render power-up (if exists)
+            if (powerUp) {
+                ctx.fillStyle = 'red';
+                ctx.fillRect(powerUp.x, powerUp.y, 20, 20); // Larger size for power-up
+            }
+
+            // Render all snakes
+            for (let id in snakes) {
+                const snake = snakes[id];
+                ctx.fillStyle = snake.color;
+
+                // Render each segment of the snake's body
+                snake.body.forEach(segment => {
+                    ctx.fillRect(segment.x, segment.y, 10, 10);
+                });
+
+                // Render the player's name above the head of the snake
+                const head = snake.body[0];
+                ctx.fillStyle = 'white';
+                ctx.font = '12px Arial';
+                ctx.fillText(snake.name, head.x, head.y - 10); // Name above snake
+            }
+
+            requestAnimationFrame(renderGame); // Keep rendering the game
+        }
+
+        // Start the rendering loop
+        renderGame();
+    </script>
+</body>
+</html>
